@@ -35,7 +35,7 @@ test = ["pytest>=8,<10", "PyYAML>=6,<7"]
 dev = [
   "pytest>=8,<10",
   "build>=1.2,<2",
-  "twine>=6,<7",
+  "twine>=6,<8",
   "ruff>=0.14,<1",
   "pip-audit>=2.9,<3",
 ]
