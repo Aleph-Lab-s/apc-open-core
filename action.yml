@@ -1,5 +1,5 @@
-name: "APC Runtime Smoke Test"
-description: "Installs APC and runs local health, integration-catalog and evidence-store checks. It does not certify application integrations."
+name: "MCP Security"
+description: "Installs APC and runs local health, integration-catalog and evidence-store checks."
 author: "Aleph Labs"
 inputs:
   python-version:
