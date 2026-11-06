@@ -1,4 +1,4 @@
-name: "MCP Security"
+name: "MCP Security For consequential ai actions"
 description: "Installs APC and runs local health, integration-catalog and evidence-store checks."
 author: "Aleph Labs"
 inputs:
