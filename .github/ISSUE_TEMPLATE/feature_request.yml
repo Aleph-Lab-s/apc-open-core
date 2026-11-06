@@ -1,0 +1,30 @@
+name: Feature or design proposal
+description: Propose an improvement or integration.
+title: "[Proposal]: "
+labels: ["enhancement", "discussion"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and affected workflow
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: threat
+    attributes:
+      label: Trust assumptions, failure modes and bypass paths
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Implementation mode
+      options: [REAL, SANDBOX, SYNTHETIC, SIMULATED, UNAVAILABLE, UNKNOWN]
+    validations:
+      required: true

@@ -1,0 +1,193 @@
+{{- if ne .Values.profile "demo" }}
+{{- fail "the 0.1.0-alpha.1 public chart supports only profile=demo; PILOT/PRODUCTION are blocked in this candidate" }}
+{{- end }}
+{{- if ne .Values.runtimeMode "DEMO" }}
+{{- fail "the 0.1.0-alpha.1 public chart supports only runtimeMode=DEMO" }}
+{{- end }}
+{{- if ne (int .Values.replicaCount) 1 }}
+{{- fail "APC 7.1.4 candidate evaluation profile supports exactly one replica because the supplied runtime uses a local SQLite/RWO state model; implement durable shared state/fencing before enabling HA." }}
+{{- end }}
+{{- if not .Values.persistence.enabled }}
+{{- if eq .Values.profile "production" }}{{ fail "persistence.enabled must be true for the production profile" }}{{- end }}
+{{- end }}
+{{- if and .Values.auth.existingSecret .Values.externalSecrets.enabled }}
+{{- fail "auth.existingSecret and externalSecrets.enabled are mutually exclusive; choose one secret source" }}
+{{- end }}
+{{- if and (not .Values.auth.existingSecret) (not .Values.externalSecrets.enabled) }}
+{{- fail "Provide auth.existingSecret or enable externalSecrets.admin; APC_ADMIN_TOKEN must come from an external Secret/secret manager." }}
+{{- end }}
+{{- $adminSecretName := .Values.auth.existingSecret | default (.Values.externalSecrets.admin.name | default (printf "%s-admin" (include "apc-action-security.fullname" .))) }}
+{{- if and .Values.externalSecrets.enabled (not .Values.externalSecrets.admin.name) }}
+{{- fail "externalSecrets.admin.name is required when externalSecrets.enabled=true" }}
+{{- end }}
+{{- if and .Values.externalSecrets.enabled (not .Values.externalSecrets.admin.secretStoreRef.name) }}
+{{- fail "externalSecrets.admin.secretStoreRef.name is required when externalSecrets.enabled=true" }}
+{{- end }}
+{{- if and .Values.externalSecrets.enabled (not .Values.externalSecrets.admin.remoteKey) }}
+{{- fail "externalSecrets.admin.remoteKey is required when externalSecrets.enabled=true" }}
+{{- end }}
+{{- if and (eq .Values.profile "production") (not .Values.image.digest) }}{{ fail "production profile requires image.digest for immutable image pinning" }}{{- end }}
+{{- if eq .Values.profile "production" }}
+{{- range $k, $_ := .Values.integrations.config }}
+{{- $lk := lower $k }}
+{{- if or (contains "password" $lk) (contains "token" $lk) (contains "secret" $lk) (contains "private" $lk) (contains "credential" $lk) (contains "api_key" $lk) (contains "apikey" $lk) }}{{ fail (printf "integration config key %s looks sensitive; use integrations.secretEnvRefs instead" $k) }}{{- end }}
+{{- end }}
+{{- end }}
+{{- if .Values.security.requireImageDigest }}
+{{- if not .Values.image.digest }}{{ fail "security.requireImageDigest=true requires image.digest to pin the OCI image by immutable digest" }}{{- end }}
+{{- end }}
+{{- if eq .Values.profile "production" }}
+{{- range .Values.service.loadBalancerSourceRanges }}{{- if or (eq . "0.0.0.0/0") (eq . "::/0") }}{{ fail "production service source ranges may not be unrestricted" }}{{- end }}{{- end }}
+{{- range .Values.networkPolicy.ingress.allowedCIDRs }}{{- if or (eq . "0.0.0.0/0") (eq . "::/0") }}{{ fail "production ingress allowedCIDRs may not be unrestricted" }}{{- end }}{{- end }}
+{{- range .Values.networkPolicy.egress.additionalRules }}{{- range .to }}{{- if and .ipBlock (or (eq .ipBlock.cidr "0.0.0.0/0") (eq .ipBlock.cidr "::/0")) }}{{ fail "production egress additionalRules may not be unrestricted" }}{{- end }}{{- end }}{{- end }}
+{{- end }}
+{{- if not .Values.security.allowUnrestrictedNetworkPolicy }}
+{{- if not .Values.networkPolicy.enabled }}{{ fail "networkPolicy.enabled=false is blocked by the secure default; explicitly set security.allowUnrestrictedNetworkPolicy=true only for controlled non-production evaluation" }}{{- end }}
+{{- end }}
+{{- if or (eq .Values.service.type "NodePort") (eq .Values.service.type "LoadBalancer") }}
+{{- if ne .Values.service.externalTrafficPolicy "Local" }}{{ fail "NodePort/LoadBalancer exposure requires service.externalTrafficPolicy=Local to preserve client source IP at the service boundary where supported" }}{{- end }}
+{{- if eq (len .Values.service.loadBalancerSourceRanges) 0 }}{{ fail "NodePort/LoadBalancer exposure requires explicit service.loadBalancerSourceRanges" }}{{- end }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "apc-action-security.fullname" . }}
+  labels:
+    {{- include "apc-action-security.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "apc-action-security.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "apc-action-security.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        apc.security/profile: {{ .Values.profile | quote }}
+        apc.security/auth-secret-version: {{ .Values.auth.secretVersion | quote }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "apc-action-security.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName | quote }}
+      {{- end }}
+      {{- if .Values.runtimeClassName }}
+      runtimeClassName: {{ .Values.runtimeClassName | quote }}
+      {{- end }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: apc
+          image: {{ include "apc-action-security.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8787
+              protocol: TCP
+          env:
+            - name: APC_MODE
+              value: {{ include "apc-action-security.runtimeMode" . | quote }}
+            - name: APC_DB_PATH
+              value: /var/lib/apc/apc-product.db
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            {{- if or .Values.auth.existingSecret .Values.externalSecrets.enabled }}
+            - name: APC_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $adminSecretName | quote }}
+                  key: {{ .Values.auth.secretKey | quote }}
+            {{- end }}
+            {{- with .Values.integrations.config }}
+            {{- range $name, $value := . }}
+            - name: {{ $name | quote }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+            {{- range .Values.integrations.secretEnvRefs }}
+            - name: {{ .envName | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName | quote }}
+                  key: {{ .secretKey | quote }}
+                  optional: {{ default false .optional }}
+            {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/apc
+            - name: tmp
+              mountPath: /tmp
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: http
+              scheme: HTTP
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+              scheme: HTTP
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+            successThreshold: 1
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "apc-action-security.fullname" . }}-data
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 128Mi

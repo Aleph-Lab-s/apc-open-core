@@ -1,0 +1,92 @@
+{
+  "release": {
+    "project": "APC \u2014 Action \u2022 Proof \u2022 Control",
+    "distribution": "apc-action-security",
+    "version": "0.1.0a1",
+    "release_label": "community alpha / developer evaluation",
+    "date": "2026-11-06",
+    "status": "PREPARED_NOT_PUBLISHED",
+    "python_requires": ">=3.11",
+    "build_environment": {
+      "python": "3.13.5",
+      "platform": "Linux-6.18.57-x86_64-with-glibc2.41"
+    }
+  },
+  "source": {
+    "runtime_snapshot": "APC Enterprise 7.1.4 certification-candidate source recovered from the user-supplied OCI image",
+    "included_packages": [
+      "apc_y",
+      "apc_product",
+      "apc",
+      "apc_mcp"
+    ],
+    "excluded_internal_documents": [
+      "APC master full product security reproduction specification",
+      "APC pricing architecture formula"
+    ],
+    "experimental_only": [
+      "NVIDIA-inspired five-module runtime-control candidate; not imported by supported runtime"
+    ],
+    "license": "Apache-2.0 is proposed in repository; copyright, provenance and dependency-license review remain required before public push"
+  },
+  "validation": {
+    "pytest": {
+      "passed": 10,
+      "skipped": 1,
+      "failed": 0,
+      "skip_reason": "MCP SDK v2 is not installed in the build environment; real SDK runtime test is delegated to the optional CI job"
+    },
+    "deep_kernel_harness": {
+      "passed": 28,
+      "failed": 0
+    },
+    "compileall": "PASS",
+    "yaml_json_syntax": "PASS for root server.json, registry/server.json, Helm chart YAML, values schema, action.yml and compose.yaml",
+    "helm_default_values_schema": "PASS; default values.yaml validates against values.schema.json",
+    "shell_syntax": "PASS for bin/release-check.sh and bin/run-deep-tests.sh",
+    "source_pattern_scan": {
+      "result": "NO MATCHES",
+      "scope": "regex checks for PEM private-key headers and common AWS/GitHub/Slack token formats; not a full secret/SAST audit"
+    },
+    "wheel_build": "PASS using pip wheel --no-deps --no-build-isolation",
+    "sdist_build": "PASS using setuptools.build_meta.build_sdist",
+    "wheel_contents": "PASS; required APC packages, MCP module and metadata present",
+    "sdist_contents": "PASS; protocol draft, root registry descriptor, report, source, experiments and tests present",
+    "wheel_install_import_smoke": "PASS; apc_y, apc_product, apc and apc_mcp import from installed wheel target",
+    "installed_cli_smoke": {
+      "passed": [
+        "apc status",
+        "apc doctor",
+        "apc integrations",
+        "apc evidence-verify"
+      ],
+      "runtime_mode": "DEMO",
+      "effect_execution": "DISABLED"
+    },
+    "mcp_runtime": "NOT VERIFIED against real MCP SDK in this environment; package correctly reports the optional SDK requirement"
+  },
+  "artifacts": {
+    "wheel": {
+      "file": "apc_action_security-0.1.0a1-py3-none-any.whl",
+      "sha256": "74478d1bfb90c733ba4d10736099af6fde5d4c377fbd8b0647ed5badd139a663",
+      "bytes": 131113
+    },
+    "source_distribution": "apc_action_security-0.1.0a1.tar.gz; final SHA-256 is in APC-Open-Source-0.1.0-alpha-SHA256SUMS.txt",
+    "repository_archives": "Repository ZIP and TAR.GZ are provided in the release kit; hashes are in the SHA256SUMS file"
+  },
+  "not_run_or_not_claimed": [
+    "MCP SDK v2 runtime interoperability test and MCP Inspector",
+    "official MCP Registry schema/service validation and publication",
+    "PyPI name availability, PyPI publication and Trusted Publishing setup",
+    "GitHub repository creation/push, release tag, GitHub Marketplace publication",
+    "Docker image build and container runtime test",
+    "Helm lint/render and Kubernetes cluster deployment",
+    "ruff and pip-audit; tools are not installed in this build environment",
+    "Twine distribution check; twine is not installed in this build environment",
+    "SBOM generation, provenance attestation and artifact signing",
+    "independent penetration test, cryptographic review, formal verification or certification",
+    "customer IdP/workload identity, real PDP/revocation, KMS/HSM, SPIFFE/mTLS, real provider adapters, provider idempotency and authoritative reconciliation",
+    "HA/shared-store/fencing/quorum, production SLO, DR/RTO/RPO and operational readiness"
+  ],
+  "release_gate": "Do not describe this alpha as enterprise production-ready, independently audited, certified, universally intercepting MCP, or approved for sensitive live external actions. Complete source ownership/legal review, CI dependency/security audit, real MCP SDK/Inspector validation, and external security review before general public release."
+}

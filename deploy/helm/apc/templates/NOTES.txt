@@ -1,0 +1,13 @@
+APC Enterprise 7.1.0rc1 — hardened Kubernetes profile
+
+1. Confirm the namespace is labeled with Pod Security restricted enforcement.
+2. Confirm an external Secret contains the APC admin token:
+   {{ .Values.auth.existingSecret }} / key {{ .Values.auth.secretKey }}
+3. Confirm the image is pinned by digest for registry deployments.
+4. Confirm NetworkPolicy source CIDRs / trusted gateway labels and egress rules are explicit.
+5. This release is intentionally single-replica because the supplied runtime uses local SQLite/RWO state.
+6. Review docs/PRODUCTION-READINESS.md before enabling customer traffic.
+
+Useful commands:
+  kubectl -n {{ .Release.Namespace }} get pods,svc,networkpolicy,pvc
+  kubectl -n {{ .Release.Namespace }} describe deployment/{{ include "apc-action-security.fullname" . }}

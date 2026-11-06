@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+message: "If you use APC in research or evaluation, please cite the repository release."
+title: "APC: Action, Proof, Control"
+authors:
+  - name: "Aleph Labs"
+version: "0.1.0-alpha.1"
+date-released: "2026-11-06"
+license: "Apache-2.0"

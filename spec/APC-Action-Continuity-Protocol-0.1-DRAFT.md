@@ -1,0 +1,211 @@
+# APC Action Continuity Protocol (APC-ACP) — Draft 0.1
+
+**Status:** Draft / non-standard / community review requested  
+**Implementation snapshot:** APC 7.1.4 candidate source, public package `0.1.0a1`  
+**Protocol identifiers present in this implementation:** `APC-CONTINUITY-1`, `APC-AUTHORITY-V3`, `APC-CANONICAL-JSON-V2`  
+**License:** See repository `LICENSE`; this document describes the implementation and does not itself establish source ownership.
+
+> This document records the current Python reference implementation. It is not a finalized interoperability standard, certification, or a promise that all APC deployments provide distributed or provider-native enforcement. Fields and behavior may change before a stable protocol release. Implementations MUST NOT claim conformance based on parsing this document alone.
+
+## 1. Purpose and scope
+
+APC is designed to preserve an approved action's security context across agent, tool, workflow, and service transitions, then re-check that context at the protected effect boundary.
+
+The implementation has two related mechanisms:
+
+1. **Authority/finality binding** (`apc_y.flagship`): an Ed25519-signed authority commits to an action context, and a finality enforcer checks the actual context and current security state before a protected sink is called.
+2. **Continuity envelopes and witnesses** (`apc_y.continuity`): authenticated transition envelopes link participants and transitions into an action chain; a receiving Transition Enforcement Point (TEP) validates the envelope and records a signed continuity witness.
+
+APC is complementary to an identity provider, OAuth/OIDC, customer policy decision point, agent framework, MCP, workflow orchestrator, cloud IAM, provider idempotency, and SIEM. It does not replace them.
+
+## 2. Terms
+
+- **Authority:** signed, time-bounded permission to execute one bound action context.
+- **Action context:** tenant, invocation, intent, candidate action, actor/principal/workload, delegation, policy decision, risk/assurance, target finality sink, and relevant security-state/precondition values.
+- **Candidate action:** operation, resource/target, parameters and audience proposed for execution.
+- **Exact action:** action representation presented at the protected effect boundary. The reference finality path compares the full action-context commitment and candidate-action digest; the continuity layer also carries an `exact_act_digest`.
+- **Finality sink:** named protected sink expected to perform the effect.
+- **Transition:** an authenticated hand-off from one sender identity/workload to a receiver identity/workload.
+- **Action chain:** ordered sequence of transitions associated with one action.
+- **Continuity witness:** verifier-signed record binding a transition to its envelope and predecessor digest.
+- **TEP:** Transition Enforcement Point; the receiver-side verifier in the reference continuity implementation.
+- **UNKNOWN:** outcome where the provider/effect result is not authoritatively known. It is not equivalent to success or failure.
+
+## 3. Canonical data and digests
+
+The current implementation declares canonicalization version `APC-CANONICAL-JSON-V2`.
+
+For values accepted by the implementation, canonicalization:
+
+1. accepts JSON-compatible null, string, boolean, integer, finite float, list, tuple (represented as a list), and dictionaries with string keys;
+2. rejects non-finite floats, non-string dictionary keys, and unsupported Python values;
+3. serializes JSON with sorted object keys, compact separators `(',', ':')`, UTF-8 characters unescaped (`ensure_ascii=False`), and NaN disabled;
+4. encodes the resulting text as UTF-8 bytes.
+
+The digest function is SHA-256 over those canonical bytes and is represented as lowercase hexadecimal in the implementation.
+
+This describes the present Python behavior. Cross-language test vectors and a stable canonicalization standard have not yet been published; independent implementations should not assume byte-for-byte interoperability until vectors and conformance tests are available.
+
+## 4. Authority and finality binding
+
+### 4.1 Action context
+
+The current `ActionContext` contains:
+
+- tenant, request ID, invocation ID;
+- intent contract: intent ID, intent data, allowed operations/resources, constraints and maximum risk;
+- candidate action (operation, resource and parameters, with other implementation-consumed fields such as audience where applicable);
+- actor ID and principal ID;
+- workload identity: workload ID, issuer and trust epoch;
+- delegation: root principal, holder, parent, scope, expiry, risk ceiling and audience;
+- source application;
+- decision input, policy decision ID, policy version and policy epoch;
+- risk and assurance values;
+- finality sink;
+- security epochs: policy, identity, delegation, tenant, risk, signer, sink and revocation;
+- optional policy issue time, resource version and precondition digest.
+
+The signed context digest covers the complete payload generated by the implementation. Do not construct a weaker partial digest and call it equivalent.
+
+### 4.2 Authority object
+
+The compatibility-named Python class is `AuthorityV2`; the current payload declares schema `APC-AUTHORITY-V3`, canonicalization `APC-CANONICAL-JSON-V2`, and cryptographic domain `APC-AUTHORITY-V3`.
+
+The payload commits to authority ID, tenant/request/invocation, intent digest, full action-context digest, candidate-action digest, actor and principal, workload, delegation, policy decision identity/version/epoch, decision-input and security-context digests, security epochs, risk, assurance, finality sink, issue and expiry times, nonce, single-use flag, signing key ID, and optional resource/precondition bindings.
+
+`AuthorityFactory.issue` currently rejects a policy/security-state epoch mismatch, authority expiry beyond delegation expiry, already-expired authority, and candidate actions outside the intent contract. The reference signer uses Ed25519. The signature is URL-safe Base64 encoding of the signature bytes over the canonical JSON payload.
+
+The current evaluation engine can create ephemeral in-process keys. This is suitable only for evaluation; it is not KMS/HSM-backed production key custody.
+
+### 4.3 Finality verification order
+
+`FinalityEnforcer.verify` currently checks, among other things:
+
+- schema, canonicalization and cryptographic-domain versions;
+- tenant and invocation consistency;
+- signer key resolution and Ed25519 signature;
+- full action-context commitment and candidate-action digest;
+- intent, decision-input and security-context digests;
+- policy decision ID/version/epoch and risk/assurance;
+- finality sink and resource/precondition binding;
+- executing actor and delegation holder;
+- expiry and configured freshness policy;
+- current security epochs;
+- optional workload trust, policy-state, sink-contract and resource-version providers;
+- intent-contract permission;
+- single-use reservation in the configured authority store.
+
+A deployment must supply trustworthy providers and state stores for the checks it relies on. Optional providers that are not configured do not magically become active controls.
+
+### 4.4 Protected execution result
+
+The protected sink interface currently has `execute(action, idempotency_key)` and `reconcile(idempotency_key)`. The reference result states are `SUCCESS`, `FAILURE`, and `UNKNOWN`.
+
+`UNKNOWN` must remain unresolved until an authoritative reconciliation source establishes the result. A local SQLite sink is only a local reference implementation; it is not evidence of provider-native idempotency or provider-authoritative reconciliation.
+
+## 5. Continuity envelope
+
+### 5.1 Identifiers and domains
+
+The current implementation uses:
+
+- protocol version: `APC-CONTINUITY-1`;
+- envelope schema: `APC-CONTINUITY-ENVELOPE-1`;
+- transition cryptographic domain: `APC-CONTINUITY-TRANSITION-1`;
+- witness schema: `APC-CONTINUITY-WITNESS-1`;
+- witness cryptographic domain: `APC-CONTINUITY-WITNESS-1`.
+
+### 5.2 Envelope fields
+
+`APCProtocolEnvelope` currently includes:
+
+- protocol, contract, schema, canonicalization and cryptographic-domain versions;
+- tenant, transition ID, optional parent transition ID, action-chain ID and invocation ID;
+- sender identity/workload and receiver identity/workload;
+- principal, authority ID, optional delegation ID and parent authority ID;
+- policy decision ID/version/epoch;
+- decision-input, security-context, intent, candidate-action, exact-action and optional transformation digests;
+- target, operation, capabilities, constraints and finality sink;
+- nonce, issue time, expiry, optional freshness lifetime;
+- assurance profile, allowed next transitions, transition counter and state;
+- sender key ID and sender signature.
+
+The envelope model rejects extra fields. It validates non-empty identifiers, timezone-aware timestamps, expiry after issue time, non-negative transition counter, and root/non-root counter rules.
+
+### 5.3 Signature and digest
+
+The sender signs the normalized envelope payload with `sender_signature` removed. The envelope digest is SHA-256 over canonical JSON of that unsigned payload. The current implementation uses Ed25519 through the common APC crypto module.
+
+A receiving TEP resolves the sender key and verifies the signature before accepting the transition. The receiver identity/workload, protocol/schema/domain versions, contract, freshness, action-chain relationship, parent authority reference and permitted transition are then validated according to the registered contract and configured providers.
+
+### 5.4 Parent-child continuity checks
+
+The reference TEP currently checks that a child transition:
+
+- belongs to the same action chain and increments the parent's transition counter by one;
+- references the parent's authority ID;
+- inherits tenant, invocation, principal, policy decision/version/epoch, decision-input digest, security-context digest, intent digest and finality sink;
+- is sent by the previous receiver identity/workload;
+- does not exceed parent capabilities, assurance floor, expiry or supported constraint bounds;
+- includes a transformation digest when material action fields change.
+
+The implementation's scalar/dictionary constraint attenuation rules are deliberately conservative and are not a general-purpose policy language.
+
+## 6. Continuity witness and chain verification
+
+A continuity witness binds:
+
+- witness ID;
+- transition and parent transition IDs;
+- action-chain ID;
+- predecessor digest;
+- envelope digest;
+- optional transformation digest;
+- issue time, verifier node ID and key ID;
+- schema/domain identifiers and verifier signature.
+
+The verifier signs the witness payload. The reference chain verifier walks from the final transition to the root, verifies witness signatures and envelope digests, checks parent linkage and transition counters, then returns the ordered chain.
+
+**Implementation boundary:** the supplied `ContinuityStore` is in-memory and protected by a process-local lock. This is not distributed replay protection, linearizable multi-node state, or durable cross-instance evidence. A production system needs a suitable shared store, fencing/consensus semantics, transactional replay protection and partition/concurrency testing.
+
+## 7. Security and deployment requirements
+
+The protocol does not itself establish trust in an identity issuer, policy decision point, workload measurement, key store, protected sink, provider idempotency system, or reconciliation endpoint. Those are deployment integrations and must be authenticated, configured, monitored and tested.
+
+A deployment must not infer that all actions are covered merely because it exposes an MCP server or API. Only operations explicitly routed through the protected execution path are in scope. Alternate credentials, internal side effects, background jobs, provider SDK calls, fallback routes and bypass paths remain outside the guarantee unless independently mediated.
+
+Do not use this alpha to authorize live payments, account changes, production infrastructure mutations, or other sensitive external actions. See `docs/production-readiness.md` for the release gate register.
+
+## 8. Conformance and current implementation status
+
+This draft defines no stable multi-language conformance badge. A meaningful conformance program still needs:
+
+1. published canonicalization and signing test vectors;
+2. schema files and version negotiation rules;
+3. independent implementations in at least two languages;
+4. positive and negative conformance vectors for authority, envelope, witness, delegation, replay, expiry, revocation, transformations, and unknown outcomes;
+5. persistence/concurrency profiles and failure-injection suites;
+6. external security review.
+
+The Python package contains a reference implementation and tests, not proof of conformance by unrelated implementations. Internal candidate test counts are described in `docs/release-validation.md` and must not be described as independent audit results.
+
+## 9. Open questions for community review
+
+The project explicitly invites criticism of:
+
+- whether approval/intent/act binding is modeled at the right boundary;
+- canonicalization edge cases and cross-language representation;
+- authority lifetime, nonce and replay semantics;
+- delegation attenuation, capability monotonicity and transformation witnesses;
+- state epochs, policy revocation and workload trust freshness;
+- TEP trust bootstrapping and verifier key rotation;
+- action-chain fork detection and distributed state requirements;
+- treatment of ambiguous provider outcomes and reconciliation;
+- what evidence a downstream auditor can independently verify;
+- whether the protocol duplicates or should compose with existing MCP, OAuth, SPIFFE, OPA/Cedar, workflow and cloud primitives.
+
+Please use the repository's security reporting process for vulnerabilities. Do not publish working bypasses against real systems or disclose sensitive customer data in public issues.
+
+## 10. Versioning
+
+This is Draft 0.1 for community evaluation. Changes may be incompatible. No production compatibility guarantee is offered. Stable protocol publication requires cross-language test vectors, independent review, and an explicit versioning/negotiation policy.
