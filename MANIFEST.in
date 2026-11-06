@@ -1,0 +1,9 @@
+recursive-include bin *.sh
+include README.md LICENSE NOTICE CHANGELOG.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md GOVERNANCE.md SUPPORT.md CITATION.cff VERSION action.yml Dockerfile compose.yaml server.json RELEASE-REPORT.md RELEASE-REPORT.json
+recursive-include docs *.md
+recursive-include tests *.py
+recursive-include registry *.json *.md
+recursive-include deploy *
+recursive-include experiments *.py *.md
+recursive-include .github *.yml *.md
+recursive-include spec *.md

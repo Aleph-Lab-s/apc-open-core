@@ -1,0 +1,8 @@
+APC — Action • Proof • Control
+Copyright 2026 Aleph Labs
+
+This NOTICE is an initial project attribution file. It does not represent a
+completed third-party attribution audit. Runtime dependencies are declared in
+pyproject.toml and are not vendored into this repository. Before a public push,
+complete the source-provenance and dependency-license review in
+docs/licensing-and-ownership.md.

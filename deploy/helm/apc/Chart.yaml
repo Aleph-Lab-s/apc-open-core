@@ -1,0 +1,8 @@
+apiVersion: v2
+name: apc-action-security
+description: APC community-alpha evaluation runtime — single-replica Kubernetes demo profile
+version: 0.1.0-alpha.1
+appVersion: "7.1.4"
+type: application
+maintainers:
+  - name: Aleph Labs

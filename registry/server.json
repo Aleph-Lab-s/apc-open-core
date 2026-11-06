@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Aleph-Lab-s/apc-security-reference-server",
+  "title": "APC Security Reference Server",
+  "description": "Reference MCP server for synthetic APC action-security evaluation and local SQLite sandbox testing. It does not intercept other MCP servers or perform live external provider actions.",
+  "repository": {
+    "url": "https://github.com/Aleph-Lab-s/apc-open-core",
+    "source": "github"
+  },
+  "version": "0.1.0-alpha.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "apc-action-security",
+      "version": "0.1.0a1",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

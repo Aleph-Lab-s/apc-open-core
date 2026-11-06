@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible APC defect (not a security vulnerability).
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include secrets, personal data, customer records or undisclosed security exploits. Use SECURITY.md for vulnerabilities."
+  - type: input
+    id: version
+    attributes:
+      label: APC version / commit
+      placeholder: 0.1.0a1 / commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Python, OS, MCP SDK (if relevant), mode and deployment.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and sanitized logs
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+    validations:
+      required: true

@@ -1,0 +1,144 @@
+profile: demo
+runtimeMode: DEMO
+
+image:
+  repository: ghcr.io/aleph-lab-s/apc-runtime
+  tag: 0.1.0-alpha.1
+  digest: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+  # The supplied image is amd64-only.
+  architecture: amd64
+
+replicaCount: 1
+revisionHistoryLimit: 5
+terminationGracePeriodSeconds: 30
+
+# The current runtime is a single-node SQLite durable-state profile.
+# Horizontal scaling is deliberately blocked by the chart.
+ha:
+  enabled: false
+
+service:
+  type: ClusterIP
+  port: 8787
+  externalTrafficPolicy: Cluster
+  loadBalancerSourceRanges: []
+  annotations: {}
+
+headlessService:
+  annotations: {}
+
+serviceAccount:
+  create: true
+  name: ""
+  # Cloud workload identity annotations. Prefer IAM/WIF/IRSA over static cloud keys.
+  annotations: {}
+
+# Even demo cluster deployments must provide a Secret created outside Helm.
+auth:
+  existingSecret: ""
+  secretKey: token
+  secretVersion: ""
+
+integrations:
+  enabled: false
+  # Non-secret provider configuration only. Values here are visible in rendered manifests.
+  config: {}
+  # References to existing Kubernetes Secrets. In production, have these Secrets populated
+  # by an approved external secret manager / CSI / ESO integration.
+  secretEnvRefs: []
+
+externalSecrets:
+  enabled: false
+  admin:
+    name: ""
+    secretStoreRef:
+      kind: ClusterSecretStore
+      name: ""
+    remoteKey: ""
+    remoteProperty: token
+
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClassName: ""
+  accessModes:
+    - ReadWriteOnce
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 1
+    memory: 512Mi
+
+security:
+  requireImageDigest: false
+  allowUnrestrictedNetworkPolicy: false
+
+networkPolicy:
+  enabled: true
+  ingress:
+    # Add explicit client/network CIDRs only when direct pod access is intended.
+    allowedCIDRs: []
+    # Trusted gateway/service-mesh/controller labels can be supplied here.
+    from:
+      []
+  egress:
+    allowDNS: true
+    # Each item is a standard NetworkPolicy egress destination rule.
+    additionalRules: []
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  privileged: false
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+podAnnotations: {}
+podLabels: {}
+
+nodeSelector:
+  kubernetes.io/arch: amd64
+
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+priorityClassName: ""
+runtimeClassName: ""
+
+# Optional generic Ingress. For production, terminate TLS at the approved edge.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: apc.example.com
+  tls:
+    []
+
+pdb:
+  enabled: false
+  minAvailable: 1
+
+# Deliberately disabled: the current SQLite/RWO profile is not horizontally scalable.
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 70
+
+commonLabels: {}
+commonAnnotations: {}

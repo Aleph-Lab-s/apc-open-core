@@ -1,0 +1,22 @@
+services:
+  apc:
+    build: .
+    image: apc-action-security:0.1.0-alpha.1
+    environment:
+      APC_MODE: DEMO
+      APC_DB_PATH: /var/lib/apc/apc.db
+      APC_ADMIN_TOKEN: ${APC_ADMIN_TOKEN:?Set APC_ADMIN_TOKEN to a random value of at least 32 characters}
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - apc-data:/var/lib/apc
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+volumes:
+  apc-data: {}
