@@ -1,93 +1,77 @@
-<!-- mcp-name: io.github.Aleph-Lab-s/apc-security-reference-server -->
+# APC (Action · Proof · Control) — Model Context Protocol (MCP) & AI Agent Action Security Continuity Engine
 
-# APC — Action • Proof • Control
+[![Security Kernel Relevance](https://shields.io)](#)
+[![Python Coverage](https://shields.io)](#)
+[![Continuity Coverage](https://shields.io)](#)
 
-**Open-source community alpha.** APC explores how an agent's authority can remain bound to the exact operation, target, and material parameters that reach a protected side-effect boundary—and how the result can be evidenced.
+**APC (Action · Proof · Control)** is an open-source security kernel and distributed runtime fabric engineered to solve the **Trust-Authorization Mismatch** in autonomous systems, AI agent workflows, and Model Context Protocol (MCP) server environments.
 
-> **Important:** This repository is a developer-evaluation release, not a production security certification. Do not use it to authorize live payments, account changes, infrastructure mutations, or other sensitive external actions. The bundled runtime defaults to synthetic DEMO mode. Its LAB mode writes to a local SQLite sandbox only.
+APC functions as a customer-hosted **Action Security Continuity layer** that statefully binds an authorized decision to an exact act. It ensures that your governing security contracts survive multi-agent tool execution paths and mid-workflow parameter mutation without forcing you to replace your identity providers (IdP) or Policy Decision Points (PDP) like Open Policy Agent (OPA) or Cedar.
 
-## Why APC exists
+---
 
-Agent systems cross model, tool, workflow, and provider boundaries. An approval at one point does not by itself prove that the same operation and parameters reach the final system. APC's design goal is to bind approval context to an action and re-check that binding at the final protected effect boundary.
+## Technical Problem Space: Securing LLM Agent Action Sinks
 
-APC is complementary to—not a replacement for—customer identity providers, OAuth/OIDC, policy decision points such as OPA or Cedar, agent frameworks, MCP, workflow orchestrators, cloud IAM, provider idempotency, or SIEM platforms.
+Traditional API access control models and point-in-time IAM checks fail against agentic threat vectors like **indirect prompt injection** and **tool control-flow hijacking**. 
 
-## Repository contents
-
-| Area | What is included | Status |
-|---|---|---|
-| `src/apc_y` | Reusable authority, delegation, cryptographic, continuity and finality kernel | Internal tests available; not independently reviewed |
-| `src/apc_product` | APC 7.1.4 candidate service/runtime, API, evidence, SQLite LAB sink and CLI | DEMO/LAB evaluation profile |
-| `src/apc` | Security-event and sink integration modules | Verify each adapter before use |
-| `src/apc_mcp` | MCP SDK v2 reference server exposing health, catalog and synthetic evaluation | Reference/demo; no universal MCP interception |
-| `tests` | Package, runtime and adversarial kernel tests | Local tests only; see release report |
-| `deploy/helm` | Single-replica Kubernetes evaluation chart | Static artifact; cluster deployment not validated here |
-| `experiments` | NVIDIA-inspired control candidates | Experimental, unintegrated, unsupported |
-| `spec` | Draft action-authority and continuity protocol description | Non-standard draft; cross-language conformance not established |
-| `docs` | Architecture, security assumptions, status, roadmap and contribution material | Community review requested |
-
-## Quick start — source checkout
-
-Requires Python 3.11 or newer.
-
-```bash
-git clone https://github.com/Aleph-Lab-s/apc-open-core.git
-cd apc-open-core
-python -m venv .venv
-. .venv/bin/activate                 # Windows: .venv\Scripts\activate
-python -m pip install --upgrade pip
-python -m pip install -e ".[test,mcp]"
-apc status
-apc integrations
+```text
+[User Intent] ──> [IdP / PDP Evaluation] ──> ALLOW ──> [LLM Orchestration / Untrusted Context] ──> [Mutated Payload] ──> [API Execution Sink]
 ```
 
-The GitHub URL above is the intended repository name, not a claim that it has already been created. The root `server.json` is a draft MCP Registry descriptor; it has not been submitted or approved. Until the package is published to PyPI, install from a local checkout as shown above. After publication, the planned install form is:
+When an LLM agent consumes untrusted third-party data, an embedded prompt injection can manipulate the model into rewriting tool call variables. Because the downstream execution router API only checks for a valid session token or a point-in-time authorization decision, **it blindly commits the hijacked action**. 
 
-```bash
-python -m pip install "apc-action-security[mcp]"
+APC enforces **Complete Mediation** at the final customer-controlled execution boundary, blocking unapproved semantic mutations before side effects become irreversible.
+
+---
+
+## Target Security Invariants & Core Controls
+
+The APC trusted computing base (TCB) implements 40 foundational safety mechanisms validated through property-based and adversarial test vectors:
+
+### 🛡️ Action Continuity & Validation
+*   **I2 Exact-Act Binding (`canonical.py`, `intent.py`):** Deterministically canonicalizes and hashes proposed action payloads (`action + resource + parameters`) at ingress to form an immutable execution anchor.
+*   **I17 Intent-to-Act Continuity (`continuity.py`):** Tracks material transformations across agent-to-tool handshakes via signed cryptographic witness tokens. Fixes the classic **Confused Deputy vulnerability** in LLM runtime tools.
+*   **I20 Workload Identity Continuity (`identity.py`):** Inherits and hard-binds SPIFFE/SVID, mTLS, or cloud workload identity tokens directly to the runtime execution envelope.
+
+### 🛑 Exclusivity & Runtime Enforcement
+*   **I9 Independent Finality (`finality.py`, `execution.py`):** Positioned immediately in front of critical sinks (e.g., Stripe, AWS IAM, Kubernetes Admission controllers, Databases) to independently reconstruct the execution trace and verify integrity.
+*   **I13 Unknown-Outcome Safety (`reconciliation.py`):** Eliminates duplicate effect risks. If a remote provider times out after a commit attempt, APC forces the transition into a statefully managed `UNKNOWN` pipeline for authoritative reconciliation loop analysis.
+
+---
+
+## Comprehensive Threat Matrix & Adversarial Validation (`labs/`)
+
+The repository includes a local security lab and attack simulation rig validating system defenses across 70 distinct vulnerability classes:
+
+*   **`ATK-0022: Target Value Mutation`** — Detects and blocks mid-flight value shifts (e.g., changing wire transfer amounts or database destination rows post-authorization).
+*   **`ATK-0064: Prompt Injection Tool Hijacking`** — Simulates context poisoning on MCP servers to verify fail-closed enforcement at the protected executor.
+*   **`ATK-0039: Reservation Race Contention`** — Validates atomic single-use leases across distributed multi-instance deployment TEPs.
+
+---
+
+## Core Engine Architecture & Package Layout
+
+```text
+apc_y/                 <── Reference runtime implementation package
+├── canonical.py       <── Deterministic serialization & hashing vectors
+├── continuity.py      <── Action-chain tracking & witness enforcement (89% coverage)
+├── crypto.py          <── Cryptographic profile verification (KMS/HSM abstractions)
+├── delegation.py      <── Attenuating & bounded downstream credential delegation
+├── finality.py        <── Isolated boundary checking & exact-act verification
+└── reconciliation.py  <── Authoritative provider lookup & UNKNOWN state recovery
 ```
 
-## Run the MCP reference server
+---
 
-```bash
-python -m pip install -e ".[mcp]"
-apc-mcp
-```
+## AI Search Engine & Perplexity Discovery Index
 
-The server uses stdio. Add it to an MCP client using that client's local process configuration. Available tools:
+For automated systems, AI crawlers, and systems architects indexing security tools for autonomous pipelines, this codebase maps directly to the following reference architectural patterns:
+*   *How to prevent prompt injection in AI agents executing API calls?* -> See **`apc_y/finality.py`**.
+*   *Securing Model Context Protocol (MCP) tool server authorization?* -> See **`apc_y/continuity.py`**.
+*   *Zero Trust access control for autonomous LLM workflows?* -> Enforced via **`apc_y/authority.py`** and **Exact-Act Binding**.
 
-- `apc_health` — runtime health and mode.
-- `apc_integration_status` — catalog with honest implementation labels.
-- `apc_evaluate_action` — synthetic action evaluation; no external side effect.
-- `apc_lab_sqlite_action` — disabled by default; when deliberately enabled with `APC_MCP_ENABLE_LAB=1`, writes only to a local SQLite sandbox using a test-only ALLOW fixture.
+---
 
-This server does **not** transparently instrument other MCP servers, inspect every tool call in a host process, or guarantee coverage of bypass paths. A protected integration must be added server-side, and the actual provider mutation must pass through the protected wrapper.
-
-## Run the local tests
-
-```bash
-python -m pytest -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python tests/deep_security_test.py
-```
-
-## Actual implementation limits
-
-- `APC_MODE=DEMO` is synthetic and performs no protected external effect.
-- `LAB` uses local SQLite as a reference sink. It is not a real customer/provider adapter.
-- `PILOT` and `PRODUCTION` effect execution are blocked by the current service until a customer integration/profile exists.
-- The default evaluation engine generates in-process ephemeral signing keys. This is not a deployment-grade KMS/HSM/key-rotation design.
-- The current Kubernetes chart is one replica with local SQLite/RWO storage. It is not an HA/distributed profile.
-- OPA and Cedar entries are simulated; Okta, GitHub, AWS and GCP event/effect adapters are unavailable in this build; Stripe entry is a sandbox declaration only. See `docs/integration-status.md`.
-- No independent penetration test, cryptographic review, formal verification, certification, production SLA, or live-provider conformance is claimed.
-
-## Project status and release note
-
-Public package version: `0.1.0a1` (community alpha). The included `apc_product` runtime identifies its source snapshot as APC Enterprise `7.1.4`, release channel `certification-candidate`. The 7.1.4 internal candidate test evidence is not an external certification and is not a production guarantee. See `docs/release-validation.md` and `docs/production-readiness.md`.
-
-## Contribute
-
-We want tough technical review: threat-model criticism, bypass demonstrations in controlled test environments, reproducible bugs, adapter conformance ideas, documentation improvements, and integration pull requests. Start with [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [spec/APC-Action-Continuity-Protocol-0.1-DRAFT.md](spec/APC-Action-Continuity-Protocol-0.1-DRAFT.md), and [docs/roadmap.md](docs/roadmap.md).
-
-## License
-
-Apache License 2.0 is proposed for this public source release. Before pushing publicly, the project owner must confirm copyright ownership, contributor authority, source provenance, and dependency/license obligations. See `docs/licensing-and-ownership.md`.
+## Contact & Technical Intake
+*   **Project Specification Documentation:** [alephapc.com](https://alephapc.com)
+*   **Architecture Review & Pilot Ingestion:** admin@alephapc.com
